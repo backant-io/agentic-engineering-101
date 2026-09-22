@@ -8,6 +8,7 @@ This pack is what I use to get out of that. The goal is an agent that works like
 
 - `AGENTS.md` - the 12 rules I give every agent I work with. Copy it into the root of your repo.
 - `README.md` - this file. The tools I build on and how I built Kairos as the loop.
+- `examples/` - a hook that blocks writes to protected paths, permission rules that deny reading secrets, and a reviewer agent with read-only tools.
 
 ## Start with the rules
 
@@ -16,6 +17,8 @@ Drop `AGENTS.md` into your repo root. Claude Code, Codex, Cursor, Hermes, pi and
 Rule 4 (define success, loop until verified) and Rule 12 (fail loud) matter most once the agent runs on its own. An agent that says "done" when it skipped something is the hardest failure to catch when nobody is watching.
 
 Rule 5 is the one people skip: use the model only for judgment calls. If code can answer, code answers. Routing, retries, counting open PRs, parsing a number out of the output - that is all plain code in my loops. The model only decides.
+
+And rules are not a fence. The agent reads them and usually follows them, until one day it does not. Write anything you cannot afford to lose a second time, as code: a hook that refuses writes to protected paths, permission rules that deny reading secrets, a reviewer that has no edit tool, and CI and branch protection for the things that really matter, because the agent cannot switch those off. `examples/` has all of these ready to copy.
 
 ## The tools
 

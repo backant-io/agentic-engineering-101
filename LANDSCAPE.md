@@ -157,9 +157,48 @@ An autonomous agent reads untrusted content all day: issues, web pages, dependen
 | [OWASP Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) | Checklist including memory poisoning and goal hijacking |
 | [How we contain Claude](https://www.anthropic.com/engineering/how-we-contain-claude) / [Claude Code auto mode](https://www.anthropic.com/engineering/claude-code-auto-mode) | How Anthropic isolates its own agents |
 
-Governance matters as much as security: approval gates for risky actions, a cost cap per turn, a kill switch, and a log of every decision with its reason.
+### Blockers, not instructions
 
-**We use:** approval gates in `.backant.toml` (merging and migrations are off by default until you trust it), a cost cap per turn, have a code-based kill switch, and every decision logged with the reason it was made.
+This is the part most people get wrong, and it is the part that decides whether your product survives an agent that runs alone. Everything you write in `AGENTS.md` is context. The agent reads it, usually follows it, and one day rationalizes its way around it. Anthropic's own docs say it plainly about instruction files: "Claude treats them as context, not enforced configuration. To block an action regardless of what Claude decides, use a PreToolUse hook instead."
+
+So write the rule twice. Once as a rule, so the agent knows. Once as code, so the rule holds when the agent forgets, misreads an issue, or gets talked into something by a web page it read.
+
+| Layer | Blocks | Who can change it |
+|---|---|---|
+| Permission rules in `.claude/settings.json` | Whole tools and paths: reading `.env`, editing `infra/**`, `git push --force` | You, in the repo |
+| A `PreToolUse` hook | Any write that touches a protected file or directory, with your own logic | You, in the repo |
+| Pre-commit hooks, secret scanners | Secrets and forbidden patterns reaching a commit | You, in the repo |
+| CI checks required to merge | Migrations, schema changes, dependency bumps, protected directories in the diff | Repo admins |
+| Branch protection, CODEOWNERS | Merging at all, and who must approve which directories | Repo admins, on the server |
+| Sandbox and network egress rules | Where the agent can run and who it can talk to | Your infrastructure |
+
+The last three matter most, because they sit outside the agent's reach. A hook on your laptop is a speed bump: it catches the accident, the honest mistake, the misread path. Branch protection is a wall: the agent cannot edit it, cannot disable it, and cannot merge around it. Put anything you truly cannot afford behind the wall, not the speed bump.
+
+Ready to copy, in [`examples/`](examples/):
+
+- [`guard-paths.sh`](examples/guard-paths.sh) - a `PreToolUse` hook that refuses any write touching `.env`, `infra/`, `terraform/`, `.github/workflows/`, migrations, keys, or the agent's own settings. Run `./guard-paths.sh --self-test` and it proves it still blocks what it should.
+- [`settings.json`](examples/settings.json) - permission rules that deny reading secrets and editing infrastructure, plus the hook registration.
+- [`reviewer.md`](examples/reviewer.md) - a reviewer agent with read-only tools.
+
+### Least privilege, per role
+
+One agent with every permission is one prompt injection away from a bad day. Give each role only what its job needs:
+
+- **Reviewer:** read only. No edit tool, no shell, no merge. It returns a verdict, nothing else. An agent that cannot write cannot be tricked into writing.
+- **Implementer:** writes code in its own worktree or sandbox, opens a PR, and cannot merge it.
+- **Merging:** done by CI when checks pass, or by a human. Not a capability the coding agent holds.
+- **Credentials:** scoped tokens per role, injected by the environment. A read-only GitHub token for the reviewer, a token without `workflow` scope for the implementer. If the agent can read the token, assume the token is public.
+- **Secrets:** never in the agent's environment if you can avoid it. Inject them through a proxy at the edge, so the agent uses a credential it cannot see.
+
+### If you run Codex, be stricter
+
+We run Kairos on Claude Code on purpose. In our experience it is harder to prompt-inject, and that is a must have when nobody is watching. If you run Codex or another harness autonomously, assume a higher chance that the model goes off the rails or does what a malicious issue told it to do, and compensate with the layers above rather than with instructions: sandbox it, keep secrets out of its environment, allowlist the hosts it may reach, give it read-only access by default, and require a human or CI for every merge. Whatever you allow, expect it to be exercised at some point.
+
+### Governance
+
+Approval gates for risky actions, a cost cap per turn, a kill switch, and a log of every decision with its reason.
+
+**We use:** approval gates in `.backant.toml` (merging and migrations are off by default until you trust it), a cost cap per turn, a code-based kill switch, and every decision logged with the reason it was made.
 
 ## 10. Organization
 
