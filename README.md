@@ -11,11 +11,7 @@ This pack is what I use to get out of that. The goal is an agent that works like
 
 ## Start with the rules
 
-Drop `AGENTS.md` into your repo root. Codex, Cursor, Hermes, pi and most other agents read it automatically. Claude Code reads `CLAUDE.md`, so just link it:
-
-```bash
-ln -s AGENTS.md CLAUDE.md
-```
+Drop `AGENTS.md` into your repo root. Claude Code, Codex, Cursor, Hermes, pi and most other agents read it from there, no setting and no second file. Claude Code needs v2.1.277 or newer for this, and it only reads `AGENTS.md` when the repo has no `CLAUDE.md`.
 
 Rule 4 (define success, loop until verified) and Rule 12 (fail loud) matter most once the agent runs on its own. An agent that says "done" when it skipped something is the hardest failure to catch when nobody is watching.
 
